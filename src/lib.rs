@@ -4,6 +4,8 @@
 extern mod extra;
 use extra::container::Deque;
 use extra::dlist::DList;
+use std::rand;
+use std::rand::{IsaacRng, Rng};
 use std::rt::io::TcpStream::connect;
 use std::rt::io::{io_error, IoError, OtherIoError, TcpStream, Writer};
 use std::str::from_utf8;
@@ -15,6 +17,7 @@ pub struct Bot {
     conn: TcpStream,
     priv buf: [u8, ..1024],
     priv unread: DList<~str>,
+    priv rng: IsaacRng,
 }
 
 impl Bot {
@@ -39,13 +42,15 @@ impl Bot {
                 conn: conn,
                 buf: [0, ..1024],
                 unread: DList::new(),
+                rng: rand::rng(),
             }
         }
     }
 
     pub fn init(&mut self) {
-        write!(&mut self.conn as &mut Writer, "USER {0:s} 8 * :{0:s}", self.nick);
-        write!(&mut self.conn as &mut Writer, "NICK {:s}", self.nick);
+        let nick = self.nick.clone();
+        self.writeln(format!("USER {0:s} 8 * :{0:s}", nick));
+        self.writeln(format!("NICK {:s}", nick));
     }
 
     pub fn writeln(&mut self, msg: ~str) {
@@ -53,7 +58,8 @@ impl Bot {
     }
 
     pub fn say(&mut self, msg: ~str) {
-        write!(&mut self.conn as &mut Writer, "PRIVMSG {:s} :{:s}", self.channel, msg);
+        let channel = self.channel.clone();
+        self.writeln(format!("PRIVMSG {:s} :{:s}", channel, msg));
     }
 
     pub fn read_line(&mut self) -> Option<~str> {
@@ -83,4 +89,18 @@ impl Bot {
         }
         Some(next_line)
     }
+    
+    pub fn converse(&mut self) {
+        let say = says[self.rng.gen_integer_range(0, says.len())].to_owned();
+        self.writeln(say);
+    }
 }
+
+static says: [&'static str, ..5] = [
+    "Ohai there",
+    "doge",
+    "pls",
+    "such chaz",
+    "very chaz",
+];
+
