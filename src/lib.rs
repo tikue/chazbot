@@ -90,17 +90,25 @@ impl Bot {
         Some(next_line)
     }
     
-    pub fn converse(&mut self) {
+    pub fn converse(&mut self, guy: &str) {
         let say = says[self.rng.gen_integer_range(0, says.len())].to_owned();
+        let say = if say.starts_with(" ") {
+            guy + say
+        } else if say.ends_with(" ") {
+            say + guy
+        } else {
+            say
+        };
         self.writeln(say);
     }
 }
 
-static says: [&'static str, ..5] = [
+static says: [&'static str, ..6] = [
     "Ohai there",
     "doge",
-    "pls",
+    "wow",
     "such chaz",
-    "very chaz",
+    "very chaz, ",
+    " pls"
 ];
 
