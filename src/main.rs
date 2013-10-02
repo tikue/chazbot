@@ -4,6 +4,7 @@
 extern mod extra;
 use extra::getopts::{getopts, optopt};
 use lib::Bot;
+use std::ascii::StrAsciiExt;
 use std::os::args;
 use std::rt::io::{Reader};
 
@@ -47,7 +48,7 @@ fn main() {
                     continue;
                 } else if line.contains(format!("{}: PING", chaz.nick)) {
                     chaz.say(~"POOOOOOOOOONG!!!!");
-                } else if line.contains(format!("{}", chaz.nick)) {
+                } else if line.to_ascii_lower().contains(format!("{}", chaz.nick)) {
                     chaz.converse(line.slice(1, line.find('!').expect("wat")));
                 } else if line.contains("lol") || line.contains("haha")
                     || line.contains("hehe") {
@@ -57,7 +58,6 @@ fn main() {
                 }
             }
             None => return,
-            
         }
     }
 }

@@ -105,12 +105,13 @@ impl Bot {
     }
 }
 
-static says: [&'static str, ..6] = [
+static says: [&'static str, ..7] = [
     "Ohai there",
     "doge",
     "wow",
     "such chaz",
     "very chaz, ",
-    " pls"
+    " pls",
+    "                       :}",
 ];
 
