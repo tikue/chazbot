@@ -99,7 +99,8 @@ impl Bot {
         } else {
             say
         };
-        self.writeln(say);
+        println!("me: {}", say);
+        self.say(say);
     }
 }
 
