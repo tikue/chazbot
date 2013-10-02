@@ -59,7 +59,9 @@ impl Bot {
 
     pub fn say(&mut self, msg: ~str) {
         let channel = self.channel.clone();
-        self.writeln(format!("PRIVMSG {:s} :{:s}", channel, msg));
+        let msg = format!("PRIVMSG {:s} :{:s}", channel, msg);
+        self.writeln(msg.clone());
+        println!("me: {}", msg);
     }
 
     pub fn read_line(&mut self) -> Option<~str> {
@@ -99,7 +101,6 @@ impl Bot {
         } else {
             say
         };
-        println!("me: {}", say);
         self.say(say);
     }
 }

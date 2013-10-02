@@ -48,7 +48,7 @@ fn main() {
                 } else if line.contains(format!("{}: PING", chaz.nick)) {
                     chaz.say(~"POOOOOOOOOONG!!!!");
                 } else if line.contains(format!("{}", chaz.nick)) {
-                    chaz.converse(line.slice_to(line.find('!').expect("wat")));
+                    chaz.converse(line.slice(1, line.find('!').expect("wat")));
                 } else if line.contains("lol") || line.contains("haha")
                     || line.contains("hehe") {
                     chaz.say(~"lolol");
