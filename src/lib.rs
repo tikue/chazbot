@@ -105,7 +105,7 @@ impl Bot {
     }
 }
 
-static SAYS: [&'static str, ..7] = [
+static SAYS: [&'static str, ..8] = [
     "Ohai there",
     "doge",
     "wow",
@@ -113,5 +113,6 @@ static SAYS: [&'static str, ..7] = [
     "very chaz, ",
     " pls",
     "                       :}",
+    "you're doing it ",
 ];
 

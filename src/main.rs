@@ -25,6 +25,14 @@ static BORED: [&'static str, ..10] = [
     "haha that's what she said this one time",
 ];
 
+static LAFFS: [&'static str, ..5] = [
+    "lol",
+    "haha",
+    "hehe",
+    "jaja",
+    "hoho"
+];
+
 fn main() {
     let opts = [
         optopt("addr"),
@@ -57,14 +65,13 @@ fn main() {
     loop {
         if (port.peek()) {
             port.try_recv();
-            let say = BORED[chaz.rng.gen_integer_range(0, BORED.len())].to_owned();
+            let say = chaz.rng.choose(BORED).to_owned();
             chaz.say(say);
         }
         match chaz.read_line() {
             Some(line) => {
                 let no_space = line.replace(" ", "").to_ascii_lower();
                 let lower_line = line.to_ascii_lower();
-                println!("no space: {}", no_space);
                 println!("from server: {}", line);
                 if line.contains("MODE") {
                     if !joined {
@@ -82,18 +89,20 @@ fn main() {
                     chaz.say(~"POOOOOOOOOONG!!!!");
                 } else if lower_line.contains(chaz.nick)
                     || no_space.contains(chaz.nick) {
+                    let guy = line.slice(1, line.find('!').unwrap());
                     if chaz.rng.gen_weighted_bool(10) {
-                        chaz.say(format!("and then {} was all like",
-                            line.find('!').unwrap()));
-                        chaz.say(format!("\"{}\"",
-                            line.slice_from(line.rfind(':').unwrap())));
+                        chaz.say(format!("and then {} was all like", guy));
+                        let sep = format!("{} :", chaz.channel);
+                        let v: ~[&str] = line.split_str_iter(sep).collect();
+                        let said = v[1];
+                        chaz.say(format!("\"{}\"", said.slice_to(said.len() - 2)));
                         chaz.say(~"like i even GAF");
                     } else {
-                        chaz.converse(line.slice(1, line.find('!').expect("wat")));
+                        chaz.converse(guy);
                     }
-                } else if line.contains("lol") || line.contains("haha")
-                    || line.contains("hehe") {
-                    chaz.say(~"lolol");
+                } else if LAFFS.iter().any(|&laff| line.contains(laff)) {
+                    let laff = chaz.rng.choose(LAFFS).to_owned();
+                    chaz.say(laff);
                 } else if line.contains("rofl") || line.contains("LOL") {
                     chaz.say(~"LOLOLOLLLLLL");
                 } else if line.to_ascii_lower().contains("wow") {
