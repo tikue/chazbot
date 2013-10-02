@@ -17,7 +17,7 @@ pub struct Bot {
     conn: TcpStream,
     priv buf: [u8, ..1024],
     priv unread: DList<~str>,
-    priv rng: IsaacRng,
+    rng: IsaacRng,
 }
 
 impl Bot {
@@ -93,7 +93,7 @@ impl Bot {
     }
     
     pub fn converse(&mut self, guy: &str) {
-        let say = says[self.rng.gen_integer_range(0, says.len())].to_owned();
+        let say = SAYS[self.rng.gen_integer_range(0, SAYS.len())].to_owned();
         let say = if say.starts_with(" ") {
             guy + say
         } else if say.ends_with(" ") {
@@ -105,7 +105,7 @@ impl Bot {
     }
 }
 
-static says: [&'static str, ..7] = [
+static SAYS: [&'static str, ..7] = [
     "Ohai there",
     "doge",
     "wow",

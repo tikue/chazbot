@@ -6,9 +6,24 @@ use extra::getopts::{getopts, optopt};
 use lib::Bot;
 use std::ascii::StrAsciiExt;
 use std::os::args;
-use std::rt::io::{Reader};
+use std::rand::Rng;
+use std::rt::io::Reader;
+use std::rt::io::timer::Timer;
 
 mod lib;
+
+static BORED: [&'static str, ..10] = [
+    "so...",
+    "hey guys? question",
+    "bananas you POS",
+    "and then he was like 'oh chaz you so funny'",
+    "but for real guys",
+    "tough crowd tonight.",
+    "i just had the craziest idea",
+    "when do you think they'll notice we're in here?",
+    "how do I have time for this ugh",
+    "haha that's what she said this one time",
+];
 
 fn main() {
     let opts = [
@@ -30,9 +45,26 @@ fn main() {
     chaz.init();
     let mut joined = false;
 
+    let (port, chan) = stream();
+    do spawn {
+        let mut timer = Timer::new().unwrap();
+        loop {
+            timer.sleep(60000 * 5); // 5 min
+            chan.send(());
+        }
+    }
+
     loop {
+        if (port.peek()) {
+            port.try_recv();
+            let say = BORED[chaz.rng.gen_integer_range(0, BORED.len())].to_owned();
+            chaz.say(say);
+        }
         match chaz.read_line() {
             Some(line) => {
+                let no_space = line.replace(" ", "").to_ascii_lower();
+                let lower_line = line.to_ascii_lower();
+                println!("no space: {}", no_space);
                 println!("from server: {}", line);
                 if line.contains("MODE") {
                     if !joined {
@@ -48,13 +80,26 @@ fn main() {
                     continue;
                 } else if line.contains(format!("{}: PING", chaz.nick)) {
                     chaz.say(~"POOOOOOOOOONG!!!!");
-                } else if line.to_ascii_lower().contains(format!("{}", chaz.nick)) {
-                    chaz.converse(line.slice(1, line.find('!').expect("wat")));
+                } else if lower_line.contains(chaz.nick)
+                    || no_space.contains(chaz.nick) {
+                    if chaz.rng.gen_weighted_bool(10) {
+                        chaz.say(format!("and then {} was all like",
+                            line.find('!').unwrap()));
+                        chaz.say(format!("\"{}\"",
+                            line.slice_from(line.rfind(':').unwrap())));
+                        chaz.say(~"like i even GAF");
+                    } else {
+                        chaz.converse(line.slice(1, line.find('!').expect("wat")));
+                    }
                 } else if line.contains("lol") || line.contains("haha")
                     || line.contains("hehe") {
                     chaz.say(~"lolol");
                 } else if line.contains("rofl") || line.contains("LOL") {
                     chaz.say(~"LOLOLOLLLLLL");
+                } else if line.to_ascii_lower().contains("wow") {
+                    chaz.say(~"wowowow doogie hauser");
+                } else if chaz.rng.gen_weighted_bool(25) {
+                    chaz.say(~"sharif don't liiiiike it lolol u know? ino uno");
                 }
             }
             None => return,
