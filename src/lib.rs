@@ -12,17 +12,28 @@ use std::rt::io::TcpStream::connect;
 use std::rt::io::timer::Timer;
 use std::str::from_utf8;
 
+/// Informally called "chaz," Bot is an IRC bot
+/// for irc.mozilla.org.
 pub struct Bot {
-    nick: ~str,
-    channel: ~str,
-    conn: TcpStream,
+    /// IRC Nick to register.
+    priv nick: ~str,
+    /// IRC Channel to join.
+    priv channel: ~str,
+    /// Connection to the IRC server.
+    priv conn: TcpStream,
+    /// Whether or not Bot has joined <channel> yet.
+    priv joined: bool,
+    /// RNG for randomly choosing things to say.
+    priv rng: IsaacRng,
+    /// Buffer for reading data from the server.
     priv buf: [u8, ..1024],
+    /// Processed but unread lines sent from server.
     priv unread: DList<~str>,
-    joined: bool,
-    rng: IsaacRng,
 }
 
 impl Bot {
+    /// Construct a new bot. Automatically connects to the server
+    /// at the given address.
     pub fn new(nick: ~str, channel: ~str, addr: ~str) -> Option<Bot> {
         let addr = match from_str(addr) {
             Some(addr) => addr,
@@ -137,28 +148,37 @@ impl Bot {
         Some(next_line)
     }
 
+    /// Sends a message to the server, appending the proper carriage return.
     pub fn writeln(&mut self, msg: ~str) {
         println!("me         : {}", msg.as_slice());
         write!(&mut self.conn as &mut Writer, "{}\r\n", msg);
     }
 
+    /// Say something in the channel currently residing in.
+    /// Does nothing if a channel has not yet been joined.
     pub fn say(&mut self, msg: ~str) {
+        if !self.joined { return; }
         let channel = self.channel.clone();
         let msg = format!("PRIVMSG {:s} :{:s}", channel, msg);
         self.writeln(msg.clone());
     }
 
+    /// Direct a message at the specified nick.
     pub fn converse(&mut self, name: &str) {
         let say = self.rng.choose(SAYS);
         self.say(say(name));
     }
 
+    /// Join the bot's channel if it hasn't already.
     pub fn join(&mut self) {
+        if self.joined { return; }
         let join_expr = "JOIN " + self.channel;
         self.writeln(join_expr);
         self.joined = true;
     }
 
+    /// Respond to a message's content appropriately given the
+    /// type of message.
     pub fn respond_to(&mut self, name: &str, content: &str) {
         let content: ~[&str] = content.splitn_iter(' ', 2).collect();
         let (content_key, content) = match content {
@@ -176,6 +196,7 @@ impl Bot {
         }
     }
 
+    /// Respond to a message from the given nick.
     fn respond_to_privmsg(&mut self, name: &str, content: &str) {
         let content_lower = content.to_ascii_lower();
         let content_spaceless = content_lower.replace(" ", "");
@@ -223,6 +244,7 @@ impl Bot {
         }
     }
 
+    /// Parse a message's key.
     pub fn parse_key(&self, key: &str) -> Key {
         if key == ":concrete.mozilla.org" {
             Server
@@ -239,6 +261,7 @@ impl Bot {
     }
 }
 
+/// The various types of message keys.
 enum Key {
     Me,
     Nick(~str),
@@ -247,6 +270,7 @@ enum Key {
 }
 
 #[deriving(Clone)]
+/// Different possibilities for types of responses.
 enum ResponseTo {
     MyName,
     Laff,
