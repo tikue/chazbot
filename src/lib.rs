@@ -4,6 +4,7 @@
 extern mod extra;
 use extra::container::Deque;
 use extra::dlist::DList;
+use std::ascii::StrAsciiExt;
 use std::rand;
 use std::rand::{IsaacRng, Rng};
 use std::rt::io::TcpStream::connect;
@@ -17,6 +18,7 @@ pub struct Bot {
     conn: TcpStream,
     priv buf: [u8, ..1024],
     priv unread: DList<~str>,
+    joined: bool,
     rng: IsaacRng,
 }
 
@@ -42,6 +44,7 @@ impl Bot {
                 conn: conn,
                 buf: [0, ..1024],
                 unread: DList::new(),
+                joined: false,
                 rng: rand::rng(),
             }
         }
@@ -54,6 +57,7 @@ impl Bot {
     }
 
     pub fn writeln(&mut self, msg: ~str) {
+        println!("me         : {}", msg.as_slice());
         write!(&mut self.conn as &mut Writer, "{}\r\n", msg);
     }
 
@@ -61,7 +65,6 @@ impl Bot {
         let channel = self.channel.clone();
         let msg = format!("PRIVMSG {:s} :{:s}", channel, msg);
         self.writeln(msg.clone());
-        println!("me: {}", msg);
     }
 
     pub fn read_line(&mut self) -> Option<~str> {
@@ -103,6 +106,71 @@ impl Bot {
         };
         self.say(say);
     }
+
+    pub fn join_chan(&mut self) {
+        let join_expr = "JOIN " + self.channel;
+        self.writeln(join_expr);
+        self.joined = true;
+    }
+
+    pub fn respond_to(&mut self, name: &str, content: &str) {
+        let content: ~[&str] = content.splitn_iter(' ', 2).collect();
+        let (_content_key, content) = match content {
+            ["JOIN", .. _content] => return,
+            ["PRIVMSG", _chan, .. content] => ("PRIVMSG", content[0].slice_from(1)),
+            _ => unreachable!(),
+        };
+        let content_lower = content.to_ascii_lower();
+        let content_spaceless = content_lower.replace(" ", "");
+        let mut possibilities = ~[];
+
+        if content_spaceless.contains(self.nick) {
+            possibilities.push(MyName);
+        }
+
+        if BIG_LAFFS.iter().any(|&laff| content.contains(laff)) {
+            possibilities.push(BigLaff);
+        } else if LAFFS.iter().any(|&laff| content.contains(laff)) {
+            possibilities.push(Laff);
+        }
+
+        if content.to_ascii_lower().contains("wow") {
+            possibilities.push(Wow);
+        }
+
+        if possibilities.is_empty() {
+            if self.rng.gen_weighted_bool(25) {
+                self.say(~"lol i don't even know what to say lol bc i'm a bot :-(");
+            }
+            return;
+        }
+
+        match self.rng.choose(possibilities) {
+            MyName => {
+                if self.rng.gen_weighted_bool(10) {
+                    self.say(format!("and then {} was all like", name));
+                    self.say(format!("\"{}\"", content));
+                    self.say(~"like i even GAF");
+                } else {
+                    self.converse(name);
+                }
+            }
+            Laff => {
+                let laff = self.rng.choose(LAFFS).to_owned();
+                self.say(laff);
+            }
+            BigLaff => self.say(~"LOLOLOLLLLLL"),
+            Wow => self.say(~"wowowow doogie hauser"),
+        }
+    }
+}
+
+#[deriving(Clone)]
+enum ResponseTo {
+    MyName,
+    Laff,
+    BigLaff,
+    Wow,
 }
 
 static SAYS: [&'static str, ..8] = [
@@ -114,5 +182,18 @@ static SAYS: [&'static str, ..8] = [
     " pls",
     "                       :}",
     "you're doing it ",
+];
+
+static LAFFS: [&'static str, ..5] = [
+    "lol",
+    "haha",
+    "hehe",
+    "jaja",
+    "hoho",
+];
+
+static BIG_LAFFS: [&'static str, ..2] = [
+    "rofl",
+    "LOL",
 ];
 

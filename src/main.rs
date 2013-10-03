@@ -4,7 +4,6 @@
 extern mod extra;
 use extra::getopts::{getopts, optopt};
 use lib::Bot;
-use std::ascii::StrAsciiExt;
 use std::os::args;
 use std::rand::Rng;
 use std::rt::io::Reader;
@@ -15,7 +14,7 @@ mod lib;
 static BORED: [&'static str, ..10] = [
     "so...",
     "hey guys? question",
-    "bananas you POS",
+    "bananas, you POS",
     "and then he was like 'oh chaz you so funny'",
     "but for real guys",
     "tough crowd tonight.",
@@ -25,13 +24,12 @@ static BORED: [&'static str, ..10] = [
     "haha that's what she said this one time",
 ];
 
-static LAFFS: [&'static str, ..5] = [
-    "lol",
-    "haha",
-    "hehe",
-    "jaja",
-    "hoho"
-];
+enum Key {
+    Me,
+    Nick(~str),
+    Ping,
+    Server,
+}
 
 fn main() {
     let opts = [
@@ -51,64 +49,55 @@ fn main() {
     let mut chaz = Bot::new(nick, chan, addr).unwrap();
     println("starting");
     chaz.init();
-    let mut joined = false;
 
     let (port, chan) = stream();
     do spawn {
         let mut timer = Timer::new().unwrap();
         loop {
             timer.sleep(60000 * 5); // 5 min
-            chan.send(());
+            if !chan.try_send(()) { break; }
         }
     }
 
+    let me = chaz.nick.clone();
+    let parse_key = |key: &str| {
+        if key == ":concrete.mozilla.org" {
+            Server
+        } else if key == "PING" {
+            Ping
+        } else if key == ":" + me {
+            Me
+        } else {
+            let name_end = key.find('!')
+                .expect(format!("unrecognized key: {}", key));
+            let nick = key.slice(1, name_end).to_owned();
+            Nick(nick)
+        }
+    };
     loop {
         if (port.peek()) {
-            port.try_recv();
+            port.recv();
             let say = chaz.rng.choose(BORED).to_owned();
             chaz.say(say);
         }
         match chaz.read_line() {
             Some(line) => {
-                let no_space = line.replace(" ", "").to_ascii_lower();
-                let lower_line = line.to_ascii_lower();
-                println!("from server: {}", line);
-                if line.contains("MODE") {
-                    if !joined {
-                        joined = true;
-                        let join = format!("JOIN {}", chaz.channel);
-                        chaz.writeln(join);
-                    }
-                } else if line.starts_with("PING") {
-                    let reply = format!("PONG{}", line.slice_from(4));
-                    println!("me: {}", reply);
-                    chaz.writeln(reply);
-                } else if line.contains("mozilla.org") {
-                    continue;
-                } else if line.contains(format!("{}: PING", chaz.nick)) {
-                    chaz.say(~"POOOOOOOOOONG!!!!");
-                } else if lower_line.contains(chaz.nick)
-                    || no_space.contains(chaz.nick) {
-                    let guy = line.slice(1, line.find('!').unwrap());
-                    if chaz.rng.gen_weighted_bool(10) {
-                        chaz.say(format!("and then {} was all like", guy));
-                        let sep = format!("{} :", chaz.channel);
-                        let v: ~[&str] = line.split_str_iter(sep).collect();
-                        let said = v[1];
-                        chaz.say(format!("\"{}\"", said.slice_to(said.len() - 2)));
-                        chaz.say(~"like i even GAF");
-                    } else {
-                        chaz.converse(guy);
-                    }
-                } else if LAFFS.iter().any(|&laff| line.contains(laff)) {
-                    let laff = chaz.rng.choose(LAFFS).to_owned();
-                    chaz.say(laff);
-                } else if line.contains("rofl") || line.contains("LOL") {
-                    chaz.say(~"LOLOLOLLLLLL");
-                } else if line.to_ascii_lower().contains("wow") {
-                    chaz.say(~"wowowow doogie hauser");
-                } else if chaz.rng.gen_weighted_bool(25) {
-                    chaz.say(~"sharif don't liiiiike it lolol u know? ino uno");
+                print!("from server: {}", line);
+
+                let line_split: ~[&str] = line.splitn_iter(' ', 1).collect();
+
+                // Possible keys: PING | :[<nick>!.* | concrete.mozilla.org | 
+                let key = line_split[0];
+                let content = line_split[1].trim();
+
+                match parse_key(key) {
+                    Server => (), // formalities
+                    Ping => chaz.writeln("PONG " + content),
+                    Me => if content.starts_with("MODE") && !chaz.joined {
+                        chaz.join_chan();
+                        chaz.converse(me);
+                    },
+                    Nick(name) => chaz.respond_to(name, content),
                 }
             }
             None => return,
