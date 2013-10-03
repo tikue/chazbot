@@ -68,9 +68,8 @@ impl Bot {
         self.writeln(format!("USER {0:s} 8 * :{0:s}", nick));
         self.writeln(format!("NICK {:s}", nick));
 
-        let (port, chan) = stream();
-
         //----- Timer for "spontaneous" declarations
+        let (port, chan) = stream();
         do spawn {
             let mut timer = Timer::new().unwrap();
             loop {
@@ -94,12 +93,8 @@ impl Bot {
             match self.read_line() {
                 Some(line) => {
                     print!("from server: {}", line);
-
-                    let line_split: ~[&str] = line.splitn_iter(' ', 1).collect();
-
-                    // Possible keys: PING | :[<nick>!.* | concrete.mozilla.org | 
-                    let key = line_split[0];
-                    let content = line_split[1].trim();
+                    let split = line.splitn_iter(is_ws, 1).to_owned_vec();
+                    let (key, content) = (split[0], split[1]);
 
                     match self.parse_key(key) {
                         Server => (), // formalities
@@ -180,18 +175,16 @@ impl Bot {
     /// Respond to a message's content appropriately given the
     /// type of message.
     pub fn respond_to(&mut self, name: &str, content: &str) {
-        let content: ~[&str] = content.splitn_iter(' ', 2).collect();
-        let (content_key, content) = match content {
-            [key, .. content] => (key, content),
-            _ => unreachable!(),
-        };
-
-        match content_key {
-            "JOIN" => if name != self.nick {
+        match content.splitn_iter(is_ws, 2).to_owned_vec() {
+            ["JOIN", .. _content] => if name != self.nick {
                 self.say(format!("wow hi {}", name))
             },
-            "QUIT" => self.say(format!("wow bye {}", name)),
-            "PRIVMSG" => self.respond_to_privmsg(name, content[1].slice_from(1)),
+            ["PRIVMSG", _chan, content] => {
+                self.respond_to_privmsg(name, content.trim_left_chars(&':'))
+            },
+            ["QUIT", .. _content] => {
+                self.say(format!("wow bye {}", name))
+            },
             _ => unreachable!(),
         }
     }
@@ -199,7 +192,8 @@ impl Bot {
     /// Respond to a message from the given nick.
     fn respond_to_privmsg(&mut self, name: &str, content: &str) {
         let content_lower = content.to_ascii_lower();
-        let content_spaceless = content_lower.replace(" ", "");
+        let content_spaceless: ~str = content_lower.word_iter()
+            .to_owned_vec().concat();
         let mut possibilities = ~[];
 
         if content_spaceless.contains(self.nick) {
@@ -218,7 +212,8 @@ impl Bot {
 
         if possibilities.is_empty() {
             if self.rng.gen_weighted_bool(25) {
-                self.say(~"lol i don't even know what to say lol bc i'm a bot :-(");
+                self.say(~"lol i don't even know what to say lol \
+                            bc i'm a bot :-(");
             }
             return;
         }
@@ -228,9 +223,9 @@ impl Bot {
                 if self.rng.gen_weighted_bool(10) {
                     self.say(format!("and then {} was all like", name));
                     self.say(format!("\"{}\"", content));
-                    self.say(format!("you're better than that, {0} -- that's what
-                            your mom would always say. \"You're better than
-                            that, {0}.\"", name));
+                    self.say(format!("you're better than that, {0} -- that's \
+                            what your mom would always say: \"You're better \
+                            than that, {0}.\"", name));
                 } else {
                     self.converse(name);
                 }
@@ -246,22 +241,18 @@ impl Bot {
 
     /// Parse a message's key.
     pub fn parse_key(&self, key: &str) -> Key {
-        if key == ":concrete.mozilla.org" {
-            Server
-        } else if key == "PING" {
-            Ping
-        } else if key == ":" + self.nick {
-            Me
-        } else {
-            let name_end = key.find('!')
-                .expect(format!("unrecognized key: {}", key));
-            let nick = key.slice(1, name_end).to_owned();
-            Nick(nick)
+        match key {
+            ":concrete.mozilla.org" => Server,
+            "PING" => Ping,
+            key if key == ":" + self.nick => Me,
+            _ => Nick(key.split_iter('!').next().unwrap()
+                .trim_left_chars(&':').to_owned()),
         }
     }
 }
 
 /// The various types of message keys.
+/// Possible keys: PING | :[<nick>!.* | concrete.mozilla.org]
 enum Key {
     Me,
     Nick(~str),
@@ -276,6 +267,12 @@ enum ResponseTo {
     Laff,
     BigLaff,
     Wow,
+}
+
+/// Convenience function because |c: char| c.is_whitespace()
+/// is too verbose.
+fn is_ws(c: char) -> bool {
+    c.is_whitespace()
 }
 
 //----- Responses to messages ----->
