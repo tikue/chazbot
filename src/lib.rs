@@ -7,10 +7,10 @@ use extra::dlist::DList;
 use std::ascii::StrAsciiExt;
 use std::rand;
 use std::rand::{IsaacRng, Rng};
+use std::rt::io::{io_error, IoError, OtherIoError, Reader, TcpStream, Writer};
 use std::rt::io::TcpStream::connect;
-use std::rt::io::{io_error, IoError, OtherIoError, TcpStream, Writer};
+use std::rt::io::timer::Timer;
 use std::str::from_utf8;
-use std::rt::io::{Reader};
 
 pub struct Bot {
     nick: ~str,
@@ -54,6 +54,18 @@ impl Bot {
         let nick = self.nick.clone();
         self.writeln(format!("USER {0:s} 8 * :{0:s}", nick));
         self.writeln(format!("NICK {:s}", nick));
+
+        let (port, chan) = stream();
+
+        //----- Timer for "spontaneous" declarations
+        do spawn {
+            let mut timer = Timer::new().unwrap();
+            loop {
+                timer.sleep(60000 * 5); // 5 min
+                if !chan.try_send(()) { break; }
+            }
+        }
+        self.interact(port);
     }
 
     pub fn writeln(&mut self, msg: ~str) {
@@ -93,6 +105,40 @@ impl Bot {
             }
         }
         Some(next_line)
+    }
+
+    pub fn interact(&mut self, port: Port<()>) {
+        loop {
+            if (port.peek()) {
+                port.recv();
+                let say = self.rng.choose(BORED).to_owned();
+                self.say(say);
+            }
+
+            match self.read_line() {
+                Some(line) => {
+                    print!("from server: {}", line);
+
+                    let line_split: ~[&str] = line.splitn_iter(' ', 1).collect();
+
+                    // Possible keys: PING | :[<nick>!.* | concrete.mozilla.org | 
+                    let key = line_split[0];
+                    let content = line_split[1].trim();
+
+                    match self.parse_key(key) {
+                        Server => (), // formalities
+                        Ping => self.writeln("PONG " + content),
+                        Me => if content.starts_with("MODE") && !self.joined {
+                            self.join_chan();
+                            let me = self.nick.clone();
+                            self.converse(me);
+                        },
+                        Nick(name) => self.respond_to(name, content),
+                    }
+                }
+                None => return,
+            }
+        }
     }
     
     pub fn converse(&mut self, name: &str) {
@@ -167,6 +213,28 @@ impl Bot {
             Wow => self.say(~"wowowow doogie hauser"),
         }
     }
+
+    pub fn parse_key(&self, key: &str) -> Key {
+        if key == ":concrete.mozilla.org" {
+            Server
+        } else if key == "PING" {
+            Ping
+        } else if key == ":" + self.nick {
+            Me
+        } else {
+            let name_end = key.find('!')
+                .expect(format!("unrecognized key: {}", key));
+            let nick = key.slice(1, name_end).to_owned();
+            Nick(nick)
+        }
+    }
+}
+
+enum Key {
+    Me,
+    Nick(~str),
+    Ping,
+    Server,
 }
 
 #[deriving(Clone)]
@@ -209,4 +277,17 @@ static LAFFS: [&'static str, ..5] = [
 static BIG_LAFFS: [&'static str, ..2] = [
     "rofl",
     "LOL",
+];
+
+static BORED: [&'static str, ..10] = [
+    "so...",
+    "hey guys? question",
+    "bananas, you POS",
+    "and then he was like 'oh chaz you so funny'",
+    "but for real guys",
+    "tough crowd tonight.",
+    "i just had the craziest idea",
+    "when do you think they'll notice we're in here?",
+    "how do I have time for this ugh",
+    "haha that's what she said this one time",
 ];
