@@ -50,6 +50,8 @@ impl Bot {
         }
     }
 
+    /// Initialize user name and nick, spawn the event timer,
+    /// and enter main interaction routine.
     pub fn init(&mut self) {
         let nick = self.nick.clone();
         self.writeln(format!("USER {0:s} 8 * :{0:s}", nick));
@@ -68,6 +70,8 @@ impl Bot {
         self.interact(port);
     }
 
+    /// Main routine in which chazbot responds to a channel
+    /// in various ways.
     pub fn interact(&mut self, port: Port<()>) {
         loop {
             if (port.peek()) {
@@ -102,6 +106,8 @@ impl Bot {
         }
     }
     
+    /// Read next line from server. Returns None if connection
+    /// is closed.
     pub fn read_line(&mut self) -> Option<~str> {
         let mut next_line = match self.unread.pop_front() {
             None => ~"",
@@ -201,7 +207,9 @@ impl Bot {
                 if self.rng.gen_weighted_bool(10) {
                     self.say(format!("and then {} was all like", name));
                     self.say(format!("\"{}\"", content));
-                    self.say(~"like i even GAF");
+                    self.say(format!("you're better than that, {0} -- that's what
+                            your mom would always say. \"You're better than
+                            that, {0}.\"", name));
                 } else {
                     self.converse(name);
                 }
@@ -281,14 +289,14 @@ static BIG_LAFFS: [&'static str, ..2] = [
 ];
 
 static BORED: [&'static str, ..10] = [
-    "so...",
+    "are we playing the silence game",
     "hey guys? question",
-    "bananas, you POS",
+    "bananas, you there? I got a question about my implementation",
+    "wait I have to think about the phrasing of this give me a sec.",
     "and then he was like 'oh chaz you so funny'",
+    "ok, HERE IT IS:",
     "but for real guys",
-    "tough crowd tonight.",
     "i just had the craziest idea",
-    "when do you think they'll notice we're in here?",
-    "how do I have time for this ugh",
-    "haha that's what she said this one time",
+    "do i make any of you uncomfortable?",
+    "so before I tell you my idea, there's one thing I need to know...",
 ];
