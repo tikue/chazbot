@@ -68,45 +68,6 @@ impl Bot {
         self.interact(port);
     }
 
-    pub fn writeln(&mut self, msg: ~str) {
-        println!("me         : {}", msg.as_slice());
-        write!(&mut self.conn as &mut Writer, "{}\r\n", msg);
-    }
-
-    pub fn say(&mut self, msg: ~str) {
-        let channel = self.channel.clone();
-        let msg = format!("PRIVMSG {:s} :{:s}", channel, msg);
-        self.writeln(msg.clone());
-    }
-
-    pub fn read_line(&mut self) -> Option<~str> {
-        let mut next_line = match self.unread.pop_front() {
-            None => ~"",
-            Some(line) => line,
-        };
-        while !next_line.ends_with("\n") {
-            match self.unread.pop_front() {
-                None => { // read more
-                    match self.conn.read(self.buf) {
-                        None => return None, // conn closed
-                        Some(bits) => {
-                            let read = from_utf8(self.buf.slice_to(bits));
-                            for line in read.line_iter().map(|s| s + "\n") {
-                                self.unread.push_back(line)
-                            }
-                            if !read.ends_with("\n") {
-                                let last = self.unread.pop_back().unwrap();
-                                self.unread.push_back(last.trim().to_owned())
-                            }
-                        }
-                    }
-                }
-                Some(line) => next_line = next_line + line,
-            }
-        }
-        Some(next_line)
-    }
-
     pub fn interact(&mut self, port: Port<()>) {
         loop {
             if (port.peek()) {
@@ -141,6 +102,46 @@ impl Bot {
         }
     }
     
+    pub fn read_line(&mut self) -> Option<~str> {
+        let mut next_line = match self.unread.pop_front() {
+            None => ~"",
+            Some(line) => line,
+        };
+
+        while !next_line.ends_with("\n") {
+            match self.unread.pop_front() {
+                None => { // read more
+                    match self.conn.read(self.buf) {
+                        None => return None, // conn closed
+                        Some(bits) => {
+                            let read = from_utf8(self.buf.slice_to(bits));
+                            for line in read.line_iter().map(|s| s + "\n") {
+                                self.unread.push_back(line)
+                            }
+                            if !read.ends_with("\n") {
+                                let last = self.unread.pop_back().unwrap();
+                                self.unread.push_back(last.trim().to_owned())
+                            }
+                        }
+                    }
+                }
+                Some(line) => next_line += line,
+            }
+        }
+        Some(next_line)
+    }
+
+    pub fn writeln(&mut self, msg: ~str) {
+        println!("me         : {}", msg.as_slice());
+        write!(&mut self.conn as &mut Writer, "{}\r\n", msg);
+    }
+
+    pub fn say(&mut self, msg: ~str) {
+        let channel = self.channel.clone();
+        let msg = format!("PRIVMSG {:s} :{:s}", channel, msg);
+        self.writeln(msg.clone());
+    }
+
     pub fn converse(&mut self, name: &str) {
         let say = self.rng.choose(SAYS);
         self.say(say(name));
