@@ -80,11 +80,11 @@ impl Bot {
                         Some(bits) => {
                             let read = from_utf8(self.buf.slice_to(bits));
                             for line in read.line_iter().map(|s| s + "\n") {
-                                self.unread.push_back(line.to_owned())
+                                self.unread.push_back(line)
                             }
                             if !read.ends_with("\n") {
                                 let last = self.unread.pop_back().unwrap();
-                                self.unread.push_back(last.trim().to_owned());
+                                self.unread.push_back(last.trim().to_owned())
                             }
                         }
                     }
@@ -95,16 +95,9 @@ impl Bot {
         Some(next_line)
     }
     
-    pub fn converse(&mut self, guy: &str) {
-        let say = SAYS[self.rng.gen_integer_range(0, SAYS.len())].to_owned();
-        let say = if say.starts_with(" ") {
-            guy + say
-        } else if say.ends_with(" ") {
-            say + guy
-        } else {
-            say
-        };
-        self.say(say);
+    pub fn converse(&mut self, name: &str) {
+        let say = self.rng.choose(SAYS);
+        self.say(say(name));
     }
 
     pub fn join_chan(&mut self) {
@@ -115,11 +108,22 @@ impl Bot {
 
     pub fn respond_to(&mut self, name: &str, content: &str) {
         let content: ~[&str] = content.splitn_iter(' ', 2).collect();
-        let (_content_key, content) = match content {
-            ["JOIN", .. _content] => return,
-            ["PRIVMSG", _chan, .. content] => ("PRIVMSG", content[0].slice_from(1)),
+        let (content_key, content) = match content {
+            [key, .. content] => (key, content),
             _ => unreachable!(),
         };
+
+        match content_key {
+            "JOIN" => if name != self.nick {
+                self.say(format!("wow hi {}", name))
+            },
+            "QUIT" => self.say(format!("wow bye {}", name)),
+            "PRIVMSG" => self.respond_to_privmsg(name, content[1].slice_from(1)),
+            _ => unreachable!(),
+        }
+    }
+
+    fn respond_to_privmsg(&mut self, name: &str, content: &str) {
         let content_lower = content.to_ascii_lower();
         let content_spaceless = content_lower.replace(" ", "");
         let mut possibilities = ~[];
@@ -173,15 +177,25 @@ enum ResponseTo {
     Wow,
 }
 
-static SAYS: [&'static str, ..8] = [
-    "Ohai there",
-    "doge",
-    "wow",
-    "such chaz",
-    "very chaz, ",
-    " pls",
-    "                       :}",
-    "you're doing it ",
+//----- Responses to messages ----->
+fn ohai(_name: &str) -> ~str { ~"Ohaiii" }
+fn doge(_name: &str) -> ~str { ~"good dogge :]" }
+fn wow(_name: &str) -> ~str { ~"wow" }
+fn such_chaz(_name: &str) -> ~str { ~"such chaz" }
+fn very_chaz(name: &str) -> ~str { format!("very chaz, {}", name) }
+fn pls(name: &str) -> ~str { format!("{} pls", name) }
+fn dolan(name: &str) -> ~str { format!("{}                       :\\}", name) }
+fn doing_it(name: &str) -> ~str { format!("you're doing it, {}", name) }
+
+static SAYS: [extern fn(&str) -> ~str, ..8] = [
+    ohai,
+    doge,
+    wow,
+    such_chaz,
+    very_chaz,
+    pls,
+    dolan,
+    doing_it,
 ];
 
 static LAFFS: [&'static str, ..5] = [
@@ -196,4 +210,3 @@ static BIG_LAFFS: [&'static str, ..2] = [
     "rofl",
     "LOL",
 ];
-
