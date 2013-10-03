@@ -90,7 +90,7 @@ impl Bot {
                         Server => (), // formalities
                         Ping => self.writeln("PONG " + content),
                         Me => if content.starts_with("MODE") && !self.joined {
-                            self.join_chan();
+                            self.join();
                             let me = self.nick.clone();
                             self.converse(me);
                         },
@@ -125,7 +125,7 @@ impl Bot {
                         }
                     }
                 }
-                Some(line) => next_line += line,
+                Some(line) => next_line = next_line + line,
             }
         }
         Some(next_line)
@@ -147,7 +147,7 @@ impl Bot {
         self.say(say(name));
     }
 
-    pub fn join_chan(&mut self) {
+    pub fn join(&mut self) {
         let join_expr = "JOIN " + self.channel;
         self.writeln(join_expr);
         self.joined = true;
