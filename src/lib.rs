@@ -64,9 +64,9 @@ impl Bot {
     /// Initialize user name and nick, spawn the event timer,
     /// and enter main interaction routine.
     pub fn init(&mut self) {
-        let nick = self.nick.clone();
-        self.writeln(format!("USER {0:s} 8 * :{0:s}", nick));
-        self.writeln(format!("NICK {:s}", nick));
+        let me = self.nick.clone();
+        self.writeln(format!("USER {0:s} 8 * :{0:s}", me));
+        self.writeln(format!("NICK {:s}", me));
 
         //----- Timer for "spontaneous" declarations
         let (port, chan) = stream();
@@ -177,13 +177,15 @@ impl Bot {
     pub fn respond_to(&mut self, name: &str, content: &str) {
         match content.splitn_iter(is_ws, 2).to_owned_vec() {
             ["JOIN", .. _content] => if name != self.nick {
-                self.say(format!("wow hi {}", name))
+                self.say(format!("and then {0} made the stupidest -- \
+                oh, hey {0}, didn't see you there...", name))
             },
             ["PRIVMSG", _chan, content] => {
                 self.respond_to_privmsg(name, content.trim_left_chars(&':'))
             },
             ["QUIT", .. _content] => {
-                self.say(format!("wow bye {}", name))
+                self.say(format!("did you see the way {} left like that?", name));
+                self.say(~"that's just, like, classic him.");
             },
             _ => unreachable!(),
         }
@@ -304,8 +306,9 @@ static LAFFS: [&'static str, ..5] = [
     "hoho",
 ];
 
-static BIG_LAFFS: [&'static str, ..2] = [
+static BIG_LAFFS: [&'static str, ..3] = [
     "rofl",
+    "lmao",
     "LOL",
 ];
 
