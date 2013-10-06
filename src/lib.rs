@@ -177,8 +177,8 @@ impl Bot {
     pub fn respond_to(&mut self, name: &str, content: &str) {
         match content.splitn_iter(is_ws, 2).to_owned_vec() {
             ["JOIN", .. _content] => if name != self.nick {
-                self.say(format!("and then {0} made the stupidest -- \
-                oh, hey {0}, didn't see you there...", name))
+                self.say(format!("and then {0} made the stupidest fa-- \
+                oh, hey {0}, didn't see you there buddy", name))
             },
             ["PRIVMSG", _chan, content] => {
                 self.respond_to_privmsg(name, content.trim_left_chars(&':'))
@@ -187,6 +187,9 @@ impl Bot {
                 self.say(format!("did you see the way {} left like that?", name));
                 self.say(~"that's just, like, classic him.");
             },
+            ["TOPIC", .. _content] => {
+                self.say(format!("what was wrong with the old topic, {}?", name));
+            }
             _ => unreachable!(),
         }
     }
@@ -224,7 +227,7 @@ impl Bot {
             MyName => {
                 if self.rng.gen_weighted_bool(10) {
                     self.say(format!("and then {} was all like", name));
-                    self.say(format!("\"{}\"", content));
+                    self.say(format!("\"{}\"", content.trim_right()));
                     self.say(format!("you're better than that, {0} -- that's \
                             what your mom would always say: \"You're better \
                             than that, {0}.\"", name));
